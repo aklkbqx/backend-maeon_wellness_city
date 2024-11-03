@@ -1,0 +1,21 @@
+NODE_ENV=development docker compose up -d playwright
+
+NODE_ENV=production docker compose up -d playwright
+
+# Development with UI
+bun run dev:ui
+
+# Development headless
+bun run dev:headless
+
+# Production with debugging
+bun run start:debug
+
+# Format code
+bun run format
+
+# Type check
+bun run typecheck
+
+# Clean build files
+bun run clean

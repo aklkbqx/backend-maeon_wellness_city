@@ -1,0 +1,35 @@
+{
+  "name": "playwright-service",
+  "version": "1.0.0",
+  "description": "Playwright microservice for Maeon",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "NODE_ENV=development bun --watch src/index.ts",
+    "dev:headless": "PLAYWRIGHT_HEADLESS=true bun --watch src/index.ts",
+    "dev:ui": "PLAYWRIGHT_HEADLESS=false PLAYWRIGHT_SHOW_UI=true bun --watch src/index.ts",
+    "build": "bun build src/index.ts --target bun --outdir ./dist",
+    "start": "NODE_ENV=production bun dist/index.js",
+    "start:debug": "NODE_ENV=production PLAYWRIGHT_DEBUG=true bun dist/index.js",
+    "test": "bun test",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit",
+    "format": "prettier --write \"src/**/*.ts\""
+  },
+  "dependencies": {
+    "@playwright/test": "^1.40.0",
+    "elysia": "^1.1.24"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.1.13",
+    "@typescript-eslint/eslint-plugin": "^6.11.0",
+    "@typescript-eslint/parser": "^6.11.0",
+    "bun-types": "latest",
+    "eslint": "^8.53.0",
+    "prettier": "^3.1.0",
+    "typescript": "^5.2.2"
+  },
+  "engines": {
+    "bun": ">=1.0.0"
+  }
+}

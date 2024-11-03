@@ -1,12 +1,4 @@
 services:
-  # app:
-  #   container_name: app_maeon
-  #   build: .
-  #   ports:
-  #     - "5001:5001"
-  #   depends_on:
-  #     - mariadb
-
   mariadb:
     container_name: mariadb_maeon
     image: mariadb:latest
@@ -27,6 +19,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - maeon_network
 
   phpmyadmin:
     container_name: phpmyadmin_maeon
@@ -38,3 +32,31 @@ services:
       PMA_HOST: mariadb
     depends_on:
       - mariadb
+    networks:
+      - maeon_network
+
+  playwright:
+    container_name: playwright_maeon
+    build: 
+      context: ./services/playwright
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "3001:3000"  # API port
+      - "5900:5900"  # VNC port
+      - "6080:6080"  # noVNC HTTP port
+    environment:
+      - TZ=Asia/Bangkok
+      - NODE_ENV=${NODE_ENV:-production}
+      - PLAYWRIGHT_HEADLESS=${PLAYWRIGHT_HEADLESS:-true}
+      - PLAYWRIGHT_SHOW_UI=${PLAYWRIGHT_SHOW_UI:-false}
+      - PLAYWRIGHT_DEBUG=${PLAYWRIGHT_DEBUG:-false}
+    volumes:
+      - ./services/playwright:/app
+      - ./.env.${NODE_ENV}:/app/.env
+    networks:
+      - maeon_network
+
+networks:
+  maeon_network:
+    driver: bridge

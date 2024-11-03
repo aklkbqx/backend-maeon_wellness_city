@@ -1,0 +1,22 @@
+{
+    "url": "https://dev.openslipverify.com/Dashboard",
+    "actions": [
+        {
+            "type": "setCookie",
+            "data": {
+                "name": "token",
+                "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1NDNhODE0MjZhZjI2YmM5NmY1NTYyYSIsImVtYWlsIjoiYWthbGFrLmtyb29AZ21haWwuY29tIiwiaWF0IjoxNjk4OTc5ODYwfQ.SZJEeyNVIeJQg3Gog-Y6XM1cDY0RIlFnB1r6I2dK5o0",
+                "domain": "dev.openslipverify.com",
+                "path": "/"
+            }
+        },
+        {
+            "type": "navigate",
+            "url": "https://dev.openslipverify.com/Dashboard"
+        },
+        {
+            "type": "automate",
+            "script": "const buttonSelector = 'button[class=\"py-3 self-end px-4 inline-flex gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-blue-600 shadow-sm hover:bg-gray-50 focus:outline-none focus:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-800 dark:border-neutral-700 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700 dark:text-blue-500\"]'; let currentValue = 0; for (let i = 0; i < 20; i++) { await page.reload(); await page.waitForLoadState('networkidle'); const value = await page.evaluate(() => { const elements = document.querySelectorAll('p[class=\"text-3xl font-semibold text-blue-600\"]'); return elements.length >= 3 ? elements[2].textContent : null; }); console.log(`Loop ${i + 1}: Current value = ${value}`); if (value === '20') { currentValue = 20; break; } await page.click(buttonSelector); await page.waitForTimeout(1000); } return currentValue;"
+        }
+    ]
+}

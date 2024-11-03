@@ -64,3 +64,62 @@ const amount = '1';
 verifySlip(imagePath, amount)
     .then((result) => console.log('ผลลัพธ์สุดท้าย:', result))
     .catch((error) => console.error('เกิดข้อผิดพลาด:', error));
+
+
+
+    // async function resetSlipCheckCount() {
+    //     const browser = await chromium.launch({
+    //         headless: true,
+    //         args: ['--no-sandbox', '--disable-setuid-sandbox']
+    //     });
+    //     const context = await browser.newContext();
+    //     const page = await context.newPage();
+    //     const TOKEN_OPENSLIP = process.env.TOKEN_OPENSLIP || "";
+    //     await context.addCookies([{
+    //         name: "token",
+    //         value: TOKEN_OPENSLIP,
+    //         domain: "dev.openslipverify.com",
+    //         path: "/"
+    //     }]);
+    
+    //     console.log("start reset slip check");
+    
+    //     await page.goto("https://dev.openslipverify.com/Dashboard");
+    //     const buttonSelector = 'button[class="py-3 self-end px-4 inline-flex gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-blue-600 shadow-sm hover:bg-gray-50 focus:outline-none focus:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-800 dark:border-neutral-700 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700 dark:text-blue-500"]';
+    
+    //     let currentvalue = 0
+    
+    //     for (let i = 0; i < 20; i++) {
+    //         try {
+    //             await page.reload();
+    //             await page.waitForLoadState('networkidle');
+    
+    //             const value = await page.evaluate(() => {
+    //                 const elements = document.querySelectorAll('p[class="text-3xl font-semibold text-blue-600"]');
+    //                 return elements.length >= 3 ? elements[2].textContent : null;
+    //             });
+    
+    //             console.log(`Loop ${i + 1}: Current value = ${value}`);
+    //             if (value === '20') {
+    //                 console.log("Target value reached. Stopping loop.");
+    //                 currentvalue = parseInt(value as string)
+    //                 break;
+    //             }
+    
+    //             await page.click(buttonSelector, { timeout: 2000 });
+    //             console.log("Button clicked.");
+    
+    //         } catch (error) {
+    //             console.error(`Loop ${i + 1}: Failed to reset credit. Error: ${error}`);
+    //         }
+    
+    //         await page.waitForTimeout(1000);
+    //     }
+    
+    //     if (currentvalue === 20) {
+    //         await browser.close();
+    //         await updateRemainingChecks(currentvalue);
+    //         const currentCredit = await getRemainingChecks();
+    //         return currentCredit;
+    //     }
+    // }
