@@ -11,7 +11,7 @@ async function verifySlip(imagePath: string, amount: string): Promise<Verificati
     let page: Page | null = null;
 
     try {
-        browser = await chromium.launch({ headless: false });
+        browser = await chromium.launch({ headless: true });
         page = await browser.newPage();
         await page.goto('https://openslipverify.com/');
 

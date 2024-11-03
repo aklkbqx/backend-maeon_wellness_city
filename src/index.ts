@@ -13,15 +13,7 @@ if (!port) {
 
 const app = new Elysia()
     .use(swagger())
-    .use(cors({
-        origin: "*",
-        methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        allowedHeaders: ["Content-Type", "Authorization"],
-        exposeHeaders: ['Content-Type', 'X-Powered-By'],
-        credentials: true,
-        maxAge: 5600,
-        preflight: true
-    }))
+    .use(cors())
     .use(staticPlugin({
         assets: 'public',
         prefix: '/'

@@ -78,7 +78,6 @@ export const sendNotification = async (token: string, notificationData: Notifica
 
 };
 
-
 export const addCommas = (num: string | number): string => {
     const numStr = typeof num === 'number' ? num.toString() : num;
     return numStr.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
