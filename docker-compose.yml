@@ -1,0 +1,40 @@
+services:
+  # app:
+  #   container_name: app_maeon
+  #   build: .
+  #   ports:
+  #     - "5001:5001"
+  #   depends_on:
+  #     - mariadb
+
+  mariadb:
+    container_name: mariadb_maeon
+    image: mariadb:latest
+    restart: always
+    ports:
+      - 9906:3306
+    environment:
+      MARIADB_ROOT_PASSWORD: ROOT_PASSWORD
+      MARIADB_USER: username
+      MARIADB_PASSWORD: password
+      MARIADB_DATABASE: maeon_db
+      TZ: 'Asia/Bangkok'
+    volumes:
+      - ./mariadb/data/:/var/lib/mysql
+      - ./mariadb/backups/:/backups
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  phpmyadmin:
+    container_name: phpmyadmin_maeon
+    image: phpmyadmin
+    restart: always
+    ports:
+      - 8888:80
+    environment:
+      PMA_HOST: mariadb
+    depends_on:
+      - mariadb

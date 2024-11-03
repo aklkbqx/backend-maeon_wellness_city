@@ -1,0 +1,344 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model accommodation {
+  id                  Int          @id @default(autoincrement())
+  location_id         Int
+  description         String       @db.Text
+  address             String       @db.Text
+  subdistrict_id      Int
+  contact             String       @db.LongText
+  interest            String?      @db.Text
+  additional_services String?      @db.Text
+  activites           String?      @db.Text
+  check_in            String?      @db.Text
+  check_out           String?      @db.Text
+  health              String?      @db.Text
+  date_info           String?      @db.LongText
+  service_fee         String?      @db.Text
+  images              String?      @db.LongText
+  created_at          DateTime     @default(now()) @db.Timestamp(0)
+  updated_at          DateTime?    @db.Timestamp(0)
+  locations           locations    @relation(fields: [location_id], references: [id], onDelete: Cascade, map: "accommodation_ibfk_1")
+  subdistricts        subdistricts @relation(fields: [subdistrict_id], references: [id], onDelete: Cascade, map: "accommodation_ibfk_2")
+
+  @@index([location_id], map: "location_id")
+  @@index([subdistrict_id], map: "subdistrict_id")
+}
+
+model attractions {
+  id             Int          @id @default(autoincrement())
+  location_id    Int
+  description    String?      @db.Text
+  address        String       @db.Text
+  subdistrict_id Int
+  contact        String       @db.LongText
+  interest       String?      @db.Text
+  product        String?      @db.Text
+  activites      String?      @db.Text
+  health         String?      @db.Text
+  date_info      String?      @db.LongText
+  service_fee    String?      @db.Text
+  images         String?      @db.LongText
+  created_at     DateTime     @default(now()) @db.Timestamp(0)
+  updated_at     DateTime?    @db.Timestamp(0)
+  locations      locations    @relation(fields: [location_id], references: [id], onDelete: Cascade, map: "attractions_ibfk_1")
+  subdistricts   subdistricts @relation(fields: [subdistrict_id], references: [id], onDelete: Cascade, map: "attractions_ibfk_2")
+
+  @@index([location_id], map: "location_id")
+  @@index([subdistrict_id], map: "subdistrict_id")
+}
+
+model bookings {
+  id              Int             @id @default(autoincrement())
+  user_id         Int
+  booking_details String          @db.LongText
+  booking_date    DateTime        @db.Date
+  start_date      DateTime        @db.Date
+  end_date        DateTime        @db.Date
+  people          Int
+  total_price     Decimal         @db.Decimal(10, 2)
+  status          bookings_status @default(PENDING)
+  created_at      DateTime?       @default(now()) @db.Timestamp(0)
+  updated_at      DateTime        @default(now()) @db.Timestamp(0)
+  users           users           @relation(fields: [user_id], references: [id], onDelete: Cascade, map: "bookings_ibfk_1")
+  payments        payments?
+
+  @@index([user_id], map: "user_id")
+}
+
+model learning_resources {
+  id               Int          @id @default(autoincrement())
+  location_id      Int
+  description      String?      @db.Text
+  address          String       @db.Text
+  subdistrict_id   Int
+  contact          String       @db.LongText
+  interest         String?      @db.Text
+  product          String?      @db.Text
+  activites        String?      @db.Text
+  health           String?      @db.Text
+  time_per_cycle   String?      @db.LongText
+  people_per_cycle String?      @db.Text
+  cost             String?      @db.Text
+  pre_booking      String?      @db.Text
+  date_info        String?      @db.LongText
+  images           String?      @db.LongText
+  created_at       DateTime     @default(now()) @db.Timestamp(0)
+  updated_at       DateTime?    @db.Timestamp(0)
+  locations        locations    @relation(fields: [location_id], references: [id], onDelete: Cascade, map: "learning_resources_ibfk_1")
+  subdistricts     subdistricts @relation(fields: [subdistrict_id], references: [id], onDelete: Cascade, map: "learning_resources_ibfk_2")
+
+  @@index([location_id], map: "location_id")
+  @@index([subdistrict_id], map: "subdistrict_id")
+}
+
+model location_types {
+  id         Int         @id @default(autoincrement())
+  name       String      @unique(map: "name") @db.VarChar(50)
+  created_at DateTime    @default(now()) @db.Timestamp(0)
+  locations  locations[]
+}
+
+model locations {
+  id                 Int                  @id @default(autoincrement())
+  name               String               @db.VarChar(255)
+  type               Int
+  map                String?              @db.LongText
+  note               String?              @db.Text
+  time_slots         String?              @db.LongText
+  owner_id           Int?
+  isActive           Boolean              @default(false)
+  created_at         DateTime?            @default(now()) @db.Timestamp(0)
+  updated_at         DateTime?            @db.Timestamp(0)
+  accommodation      accommodation[]
+  attractions        attractions[]
+  hospital           hospital[]
+  learning_resources learning_resources[]
+  location_types     location_types       @relation(fields: [type], references: [id], onDelete: Cascade, map: "locations_ibfk_1")
+  users              users?               @relation(fields: [owner_id], references: [id], onDelete: Cascade, map: "locations_ibfk_3")
+  restaurant         restaurant[]
+
+  @@index([owner_id], map: "owner_id")
+  @@index([type], map: "type")
+}
+
+model payments {
+  id             Int                      @id @default(autoincrement())
+  booking_id     Int                      @unique(map: "booking_id_2")
+  payment_method payments_payment_method?
+  payment_data   String?                  @db.LongText
+  slip_image     String?                  @db.VarChar(255)
+  status         payments_status          @default(PENDING)
+  transaction_id String?                  @db.VarChar(255)
+  payment_date   DateTime?                @db.DateTime(0)
+  created_at     DateTime?                @default(now()) @db.Timestamp(0)
+  updated_at     DateTime                 @default(now()) @db.Timestamp(0)
+  bookings       bookings                 @relation(fields: [booking_id], references: [id], onDelete: Cascade, map: "payments_ibfk_1")
+
+  @@index([booking_id], map: "booking_id")
+}
+
+model program_types {
+  id          Int        @id @default(autoincrement())
+  name        String     @db.VarChar(255)
+  description String     @db.Text
+  created_at  DateTime?  @default(now()) @db.Timestamp(0)
+  programs    programs[]
+}
+
+model programs {
+  id                  Int                       @id @default(autoincrement())
+  type                Int
+  program_category    programs_program_category @default(SHORT)
+  name                String                    @db.VarChar(255)
+  description         String                    @db.Text
+  schedules           String                    @db.LongText
+  total_price         Decimal                   @db.Decimal(8, 2)
+  wellness_dimensions String?                   @db.Text
+  images              String?                   @db.LongText
+  created_by          Int?
+  created_at          DateTime?                 @default(now()) @db.Timestamp(0)
+  updated_at          DateTime?                 @db.Timestamp(0)
+  duration_days       Int?
+  status              programs_status?          @default(DRAFT)
+  program_types       program_types             @relation(fields: [type], references: [id], onDelete: Cascade, map: "programs_ibfk_1")
+  users               users?                    @relation(fields: [created_by], references: [id], onDelete: Cascade, map: "programs_ibfk_2")
+
+  @@index([created_by], map: "created_by")
+  @@index([type], map: "type")
+}
+
+model restaurant {
+  id               Int          @id @default(autoincrement())
+  location_id      Int
+  description      String       @db.Text
+  address          String       @db.Text
+  subdistrict_id   Int
+  contact          String       @db.LongText
+  Interesting_menu String?      @db.Text
+  served_per_hour  Int?
+  health           String?      @db.Text
+  date_info        String?      @db.LongText
+  service_fee      String?      @db.Text
+  images           String?      @db.LongText
+  created_at       DateTime     @db.Timestamp(0)
+  updated_at       DateTime?    @db.Timestamp(0)
+  locations        locations    @relation(fields: [location_id], references: [id], onDelete: Cascade, map: "restaurant_ibfk_1")
+  subdistricts     subdistricts @relation(fields: [subdistrict_id], references: [id], onDelete: Cascade, map: "restaurant_ibfk_2")
+
+  @@index([location_id], map: "location_id")
+  @@index([subdistrict_id], map: "subdistrict_id")
+}
+
+model slip_remaining {
+  id         Int      @id @default(autoincrement())
+  count      Int
+  updated_at DateTime @default(dbgenerated("('0000-00-00 00:00:00')")) @db.Timestamp(0)
+}
+
+model subdistricts {
+  id                 Int                  @id @default(autoincrement())
+  name               String               @unique(map: "name") @db.VarChar(100)
+  created_at         DateTime?            @default(now()) @db.Timestamp(0)
+  accommodation      accommodation[]
+  attractions        attractions[]
+  hospital           hospital[]
+  learning_resources learning_resources[]
+  restaurant         restaurant[]
+}
+
+model users {
+  id                 Int                   @id @default(autoincrement())
+  firstname          String                @db.VarChar(150)
+  lastname           String                @db.VarChar(150)
+  email              String                @unique(map: "email") @db.VarChar(150)
+  password           String                @db.VarChar(60)
+  tel                String                @db.VarChar(20)
+  profile_picture    String?               @default("default-profile.jpg") @db.VarChar(150)
+  role               users_role?           @default(user)
+  usage_status       users_usage_status?   @default(OFFLINE)
+  status_last_update DateTime?             @default(now()) @db.Timestamp(0)
+  account_status     users_account_status? @default(ACTIVE)
+  created_at         DateTime?             @default(now()) @db.Timestamp(0)
+  updated_at         DateTime?             @db.Timestamp(0)
+  bookings           bookings[]
+  locations          locations[]
+  notifications      notifications[]
+  programs           programs[]
+}
+
+model notifications {
+  id         Int                  @id @default(autoincrement())
+  type       notifications_type
+  title      String               @db.VarChar(255)
+  body       String               @db.Text
+  data       String?              @db.LongText
+  user_id    Int
+  status     notifications_status @default(UNREAD)
+  created_at DateTime             @default(now()) @db.Timestamp(0)
+  updated_at DateTime?            @db.Timestamp(0)
+  is_deleted Boolean              @default(false)
+  users      users                @relation(fields: [user_id], references: [id], onDelete: Cascade, map: "notifications_ibfk_1")
+
+  @@index([status], map: "idx_status")
+  @@index([type], map: "idx_type")
+  @@index([user_id], map: "idx_user_id")
+}
+
+model hospital {
+  id             Int          @id @default(autoincrement())
+  location_id    Int
+  description    String?      @db.Text
+  address        String?      @db.Text
+  subdistrict_id Int
+  contact        String?      @db.LongText
+  activites      String?      @db.Text
+  health         String?      @db.Text
+  date_info      String?      @db.LongText
+  coast          Decimal?     @db.Decimal(8, 2)
+  images         String?      @db.LongText
+  created_at     DateTime     @db.Timestamp(0)
+  updated_at     DateTime     @default(dbgenerated("('0000-00-00 00:00:00')")) @db.Timestamp(0)
+  locations      locations    @relation(fields: [location_id], references: [id], onDelete: Cascade, map: "hospital_ibfk_1")
+  subdistricts   subdistricts @relation(fields: [subdistrict_id], references: [id], onDelete: Cascade, map: "hospital_ibfk_2")
+
+  @@index([location_id], map: "location_id")
+  @@index([subdistrict_id], map: "subdistrict_id")
+}
+
+enum payments_payment_method {
+  PROMPTPAY
+  BANK_ACCOUNT_NUMBER
+}
+
+enum payments_status {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+  PENDING_VERIFICATION
+  REJECTED
+}
+
+enum bookings_status {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+enum users_usage_status {
+  OFFLINE
+  ONLINE
+}
+
+enum users_account_status {
+  DELETE
+  ACTIVE
+  SUSPEND
+}
+
+enum users_role {
+  user
+  admin
+  hospital
+  restaurant
+  attractions
+  learning_resources
+  accommodation
+}
+
+enum notifications_type {
+  SYSTEM
+  CHAT
+  ORDER
+  PAYMENT
+  PROMOTION
+  ANNOUNCEMENT
+  STATUS_UPDATE
+  REMINDER
+}
+
+enum notifications_status {
+  UNREAD
+  READ
+  ARCHIVED
+}
+
+enum programs_program_category {
+  SHORT
+  LONG
+}
+
+enum programs_status {
+  DRAFT
+  CONFIRMED
+  CANCELLED
+}

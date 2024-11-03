@@ -1,0 +1,5 @@
+chmod +x backup.sh
+chmod 755 backup.sh
+
+chmod +x restore.sh
+chmod 755 restore.sh
