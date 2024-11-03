@@ -1,5 +1,5 @@
 import { Elysia, t } from 'elysia';
-import { notifications_type, payments_status, PrismaClient } from '@prisma/client';
+import { payments_status, PrismaClient } from '@prisma/client';
 import jwt from '@elysiajs/jwt';
 
 const prisma = new PrismaClient()
