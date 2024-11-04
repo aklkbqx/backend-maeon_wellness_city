@@ -78,7 +78,9 @@ export const sendNotification = async (token: string, notificationData: Notifica
 
 };
 
-export const addCommas = (num: string | number): string => {
-    const numStr = typeof num === 'number' ? num.toString() : num;
-    return numStr.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+export const addCommas = (num: string | number | null | undefined): string => {
+    if (num === null || num === undefined) return "0";
+    const number = typeof num === 'string' ? parseFloat(num) : num;
+    if (isNaN(number)) return "0";
+    return new Intl.NumberFormat('th-TH').format(number);
 };

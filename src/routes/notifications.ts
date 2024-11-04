@@ -1,13 +1,15 @@
 import { Elysia, t } from 'elysia';
-import { PrismaClient } from '@prisma/client';
+import { notifications_type, PrismaClient, users_role } from '@prisma/client';
 import jwt from '@elysiajs/jwt';
-import { JWTPayloadUser } from '../../lib/lib';
+import { JWTPayloadUser, sendNotification } from '../../lib/lib';
+import cron from '@elysiajs/cron';
 
 const prisma = new PrismaClient()
 const SECRET_KEY = process.env.SECRET_KEY;
+const TOKEN_JWT_ADMIN = process.env.TOKEN_JWT_ADMIN
 
-if (!SECRET_KEY) {
-    throw new Error('SECRET_KEY is not defined.');
+if (!SECRET_KEY || !TOKEN_JWT_ADMIN) {
+    throw new Error('KEY is not defined.');
 }
 
 const notificationRoutes = new Elysia()
@@ -197,6 +199,82 @@ const notificationRoutes = new Elysia()
                 message: 'ไม่สามารถอัพเดทสถานะการแจ้งเตือนได้',
             };
         }
-    });
+    })
+    .use(cron({
+        name: 'cleanup-old-notifications',
+        pattern: '0 0 * * *',
+        run: async () => {
+            try {
+                const thirtyDaysAgo = new Date();
+                thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+                const deletedCount = await prisma.notifications.deleteMany({
+                    where: {
+                        is_deleted: true,
+                        updated_at: {
+                            lt: thirtyDaysAgo
+                        }
+                    }
+                });
+
+                await sendNotification(TOKEN_JWT_ADMIN, {
+                    type: notifications_type.SYSTEM,
+                    receive: {
+                        all: false,
+                        role: users_role.admin
+                    },
+                    title: "ทำความสะอาดตารางกล่องข้อความที่ถูกลบไปแล้ว",
+                    body: `ทำความสะอาดข้อความจำนวน ${deletedCount.count} ข้อความ`,
+                    // data: {
+                        // link: {
+                        //     pathname: "/user/payments",
+                        //     params: {
+                        //         bookingId: booking.id
+                        //     }
+                        // }
+                    // }
+                });
+                console.log(`Cleaned up ${deletedCount.count} old notifications`);
+            } catch (error) {
+                console.error('Error cleaning up notifications:', error);
+            }
+        }
+    }))
+    .post('/cleanup', async ({ payloadUser, set }) => {
+        if (!payloadUser) {
+            set.status = 401;
+            return { success: false, message: "token ไม่ถูกต้อง" };
+        }
+        if (payloadUser.role !== 'ADMIN') {
+            set.status = 403;
+            return { success: false, message: "ไม่มีสิทธิ์ในการเข้าถึง" };
+        }
+        try {
+            const thirtyDaysAgo = new Date();
+            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+            const deletedCount = await prisma.notifications.deleteMany({
+                where: {
+                    is_deleted: true,
+                    updated_at: {
+                        lt: thirtyDaysAgo
+                    }
+                }
+            });
+
+            return {
+                success: true,
+                message: `ลบการแจ้งเตือนที่เก่ากว่า 30 วันจำนวน ${deletedCount.count} รายการ`,
+                deletedCount: deletedCount.count
+            };
+        } catch (error) {
+            set.status = 500;
+            return {
+                success: false,
+                message: 'ไม่สามารถลบการแจ้งเตือนได้',
+                error: error
+            };
+        }
+    })
 
 export default notificationRoutes;

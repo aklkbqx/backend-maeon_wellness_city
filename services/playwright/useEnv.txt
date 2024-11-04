@@ -1,3 +1,5 @@
+http://localhost:6080/vnc.html
+
 NODE_ENV=development docker compose up -d playwright
 
 NODE_ENV=production docker compose up -d playwright

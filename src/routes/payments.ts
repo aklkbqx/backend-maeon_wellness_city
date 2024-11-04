@@ -5,8 +5,46 @@ import generatePayload from 'promptpay-qr';
 import { addCommas, getThaiDate, JWTPayloadUser, sendNotification } from '../../lib/lib';
 import path from 'path';
 import { unlink } from "node:fs/promises";
-import axios from 'axios';
 import { compareTwoStrings } from 'string-similarity';
+
+interface Account {
+    value: string;
+}
+
+interface Person {
+    displayName: string;
+    name: string;
+    account?: Account;
+}
+
+interface SlipVerificationData {
+    receivingBank: string;
+    sendingBank: string;
+    transRef: string;
+    transDate: string;
+    transTime: string;
+    sender: Person & {
+        account: Account;
+    };
+    receiver: Person;
+    amount: number;
+    ref1: string;
+}
+
+interface OpenSlipVerifyResponse {
+    success: true;
+    statusMessage: "SUCCESS";
+    data: SlipVerificationData;
+}
+
+
+// type OpenSlipVerifyErrorResponse = {
+//     success: false;
+//     statusMessage: string;
+//     msg?: string;
+// }
+
+type OpenSlipVerifyType = OpenSlipVerifyResponse;
 
 const prisma = new PrismaClient();
 const SECRET_KEY = process.env.SECRET_KEY;
@@ -192,8 +230,18 @@ const app = new Elysia()
             set.status = 401;
             return { success: false, message: "token ไม่ถูกต้อง" };
         }
-        const { booking_id, slip } = body;
+        const { booking_id, slip, datacheckslip, typeConfirm, refNbr } = body;
         try {
+            // console.log(datacheckslip);
+            // console.log(typeof datacheckslip);
+            // if (typeof datacheckslip === "string") {
+            //     // console.log(JSON.parse(datacheckslip));
+            //     console.log(datacheckslip);
+            // } else {
+            //     console.log(datacheckslip);
+            // }
+            // return;
+
             const user = await prisma.users.findUnique({
                 where: {
                     id: payloadUser.id
@@ -217,9 +265,22 @@ const app = new Elysia()
                 set.status = 400;
                 return { success: false, message: "ชำระเงินไปแล้ว" };
             }
+
             if (!slip) {
                 set.status = 400;
                 return { success: false, message: "กรุณาอัพโหลดสลิปมาใหม่อีกครั้ง" }
+            }
+
+            if (refNbr) {
+                const refNbrused = await prisma.payments.findMany({
+                    where: { transaction_id: refNbr }
+                });
+                if (refNbrused.length > 0) {
+                    return { success: false, message: "สลิปนี้ได้ทำการชำระไปแล้ว ไม่สามารถที่จะใช้ซ้ำได้!" }
+                }
+            } else {
+                set.status = 400;
+                return { success: false, message: "ไม่สามาถอ่านสลิปของคุณได้ กรุณาติดต่อเจ้าหน้าที่" }
             }
 
             let slipName = "";
@@ -233,173 +294,107 @@ const app = new Elysia()
                 return ({ success: false, message: "ไม่สามารถอัพโหลดรูปสลิปได้" });
             }
 
-            let refNbr = "";
+            if (typeConfirm === "checked") {
+                const dataCheckSlip = JSON.parse(datacheckslip) as OpenSlipVerifyType;
+                let remainingChecks = await getRemainingChecks();
 
-            if (slipFilePath && slipName) {
-                const formQRCode = new FormData();
-                try {
-                    formQRCode.append("file", slip);
+                if (!remainingChecks) {
+                    set.status = 404;
+                    return { success: false, message: "ไม่พบจำนวนการตรวจสอบสลิปที่เหลือ" };
+                }
 
-                    const qrserver = await axios.post("http://api.qrserver.com/v1/read-qr-code/", formQRCode, {
-                        headers: {
-                            "Content-Type": "multipart/form-data",
-                        }
-                    });
+                if (remainingChecks <= 3) {
+                    return {
+                        success: true, message: "ไม่สามารถตรวจสอบสลิปได้ขณะนี้ กรุณาติดต่อเจ้าหน้าที่!"
+                    }
+                }
+                await updateRemainingChecks(remainingChecks - 1);
 
-                    if (qrserver.data) {
-                        refNbr = qrserver.data[0].symbol[0].data
+                if (dataCheckSlip && dataCheckSlip.success && dataCheckSlip.data.receiver) {
+                    const apiReceiver = dataCheckSlip.data.receiver;
+                    
+                    const similarityThreshold = 0.8;
+
+                    const isSimilar = (str1: string, str2: string) =>
+                        compareTwoStrings(str1.replace(/\s/g, '').toLowerCase(), str2.replace(/\s/g, '').toLowerCase()) >= similarityThreshold;
+
+                    const removeAllWhitespace = (str: string): string => {
+                        return str.replace(/\s/g, '');
+                    }
+
+                    // const compareAccounts = (acc1: string, acc2: string): boolean => {
+                    //     const clean1 = acc1.replace(/\D/g, '');
+                    //     const clean2 = acc2.replace(/[^\dx]/gi, '');
+
+                    //     if (clean1.length !== clean2.length) return false;
+
+                    //     return clean1.split('').every((char, i) =>
+                    //         clean2[i] === 'x' || char === clean2[i]
+                    //     );
+                    // }
+
+                    const isMatch =
+                        isSimilar(removeAllWhitespace(receiver.displayName.trim()), removeAllWhitespace(apiReceiver.displayName?.trim() ?? '')) &&
+                        isSimilar(removeAllWhitespace(receiver.name.toLowerCase()), removeAllWhitespace(apiReceiver.name?.toLowerCase() ?? ''));
+
+                    if (isMatch) {
+                        await prisma.payments.update({
+                            where: { id: payment.id },
+                            data: {
+                                status: payments_status.PAID,
+                                payment_date: getThaiDate(),
+                                transaction_id: refNbr,
+                                slip_image: slipName
+                            }
+                        });
+                        await sendNotification(token, {
+                            type: notifications_type.PAYMENT,
+                            receive: {
+                                userId: payloadUser.id,
+                                all: false,
+                            },
+                            title: `ชำระเงินสำเร็จ`,
+                            body: `การชำระเงินของคุณสำเร็จแล้ว จำนวน ฿${addCommas(parseFloat(booking.total_price as any))} บาท`,
+                            data: {
+                                link: {
+                                    pathname: `/user/payments/receipt`,
+                                    params: {
+                                        bookingId: booking.id
+                                    }
+                                }
+                            }
+                        });
+
+                        await sendNotification(token, {
+                            type: notifications_type.PAYMENT,
+                            receive: {
+                                all: false,
+                                role: users_role.admin
+                            },
+                            title: `คุณ ${user?.firstname} ชำระเงินสำเร็จแล้ว`,
+                            body: `จำนวน ฿${addCommas(parseFloat(booking.total_price as any))} บาท ดูรายละเอียดได้ที่นี่`,
+                            data: {
+                                link: {
+                                    pathname: `/admin/payments`,
+                                    params: {
+                                        bookingId: booking.id
+                                    }
+                                }
+                            }
+                        });
+
+                        return {
+                            success: true,
+                            message: "การชำระเงินเสร็จสมบูรณ์แล้ว กำลังรอการอนุมัติ",
+                            payment_id: payment.id
+                        };
                     } else {
-                        throw new Error("ไม่สามารถอ่านข้อมูลของ QR Code ของคุณได้ กรุณาทำการอัพโหลดสลิปมาอีกครั้ง")
+                        set.status = 400;
+                        return {
+                            success: false,
+                            message: "ข้อมูลบัญชีผู้รับเงินไม่ถูกต้อง กรุณาตรวจข้อมูลการของบัญชีผู้รับเงินในสลิปของคุณ",
+                        };
                     }
-                } catch (error) {
-                    await deleteSlip(slipFilePath);
-                    set.status = 400;
-                    return {
-                        success: false,
-                        message: error
-                    }
-                }
-            }
-
-            if (!refNbr) {
-                return { success: false, message: "ไม่สามารถตรวจสอบสลิปได้ กรุณาอัพโหลดสลิปมาใหม่อีกครั้ง" }
-            }
-
-            await prisma.payments.update({
-                where: { id: payment.id },
-                data: {
-                    status: payments_status.PENDING_VERIFICATION,
-                    transaction_id: refNbr,
-                    payment_date: getThaiDate(),
-                    slip_image: slipName
-                }
-            });
-
-            let remainingChecks = await getRemainingChecks();
-
-            if (!remainingChecks) {
-                set.status = 404;
-                return { success: false, message: "ไม่พบจำนวนการตรวจสอบสลิปที่เหลือ" };
-            }
-
-            if (remainingChecks <= 3) {
-                return {
-                    success: true, message: "อาจจะใช้เวลาสักครู่ อย่าออกจากแอพ!", resetSlip: true
-                }
-            }
-
-            const checkSlip = async (refNbr: string, amount: number, token: string) => {
-                try {
-                    const response = await axios.post("https://api.openslipverify.com/", {
-                        refNbr,
-                        amount,
-                        token
-                    }, {
-                        headers: {
-                            "Content-Type": "application/json",
-                        }
-                    });
-                    console.log(response.data);
-
-                    if (!response.data) {
-                        throw new Error(response.data.msg);
-                    }
-
-                    return response.data;
-                } catch (error) {
-                    console.error("Error checking slip:", error);
-                    return {
-                        success: false,
-                        message: "เกิดข้อผิดพลาดในการตรวจสอบสลิป"
-                    };
-                }
-            };
-
-            const datacheckslip = await checkSlip(refNbr, parseFloat(booking.total_price as any), KEY_OPENSLIP);
-            await updateRemainingChecks(remainingChecks - 1);
-
-            if (datacheckslip && datacheckslip.success) {
-                const apiReceiver = datacheckslip.data.receiver;
-                const similarityThreshold = 0.8;
-
-                const isSimilar = (str1: string, str2: string) =>
-                    compareTwoStrings(str1.replace(/\s/g, '').toLowerCase(), str2.replace(/\s/g, '').toLowerCase()) >= similarityThreshold;
-
-                const removeAllWhitespace = (str: string): string => {
-                    return str.replace(/\s/g, '');
-                }
-
-                // const compareAccounts = (acc1: string, acc2: string): boolean => {
-                //     const clean1 = acc1.replace(/\D/g, '');
-                //     const clean2 = acc2.replace(/[^\dx]/gi, '');
-
-                //     if (clean1.length !== clean2.length) return false;
-
-                //     return clean1.split('').every((char, i) =>
-                //         clean2[i] === 'x' || char === clean2[i]
-                //     );
-                // }
-
-                const isMatch =
-                    isSimilar(removeAllWhitespace(receiver.displayName.trim()), removeAllWhitespace(apiReceiver.displayName?.trim() ?? '')) &&
-                    isSimilar(removeAllWhitespace(receiver.name.toLowerCase()), removeAllWhitespace(apiReceiver.name?.toLowerCase() ?? ''));
-
-                if (isMatch) {
-                    // await prisma.payments.update({
-                    //     where: { id: payment.id },
-                    //     data: {
-                    //         status: payments_status.PAID,
-                    //         payment_date: getThaiDate(),
-                    //         transaction_id: refNbr
-                    //     }
-                    // });
-                    // await sendNotification(token, {
-                    //     type: notifications_type.PAYMENT,
-                    //     receive: {
-                    //         userId: payloadUser.id,
-                    //         all: false,
-                    //     },
-                    //     title: `ชำระเงินสำเร็จ`,
-                    //     body: `การชำระเงินของคุณสำเร็จแล้ว จำนวน ฿${addCommas(String(booking.total_price as any))} บาท`,
-                    //     data: {
-                    //         link: {
-                    //             pathname: `/user/payments/success`,
-                    //             params: {
-                    //                 bookingId: booking.id
-                    //             }
-                    //         }
-                    //     }
-                    // });
-
-                    // await sendNotification(token, {
-                    //     type: notifications_type.PAYMENT,
-                    //     receive: {
-                    //         all: false,
-                    //         role: users_role.admin
-                    //     },
-                    //     title: `คุณ ${user?.firstname} ชำระเงินสำเร็จแล้ว`,
-                    //     body: `จำนวน ฿${addCommas(String(booking.total_price as any))} บาท ดูรายละเอียดได้ที่นี่`,
-                    //     data: {
-                    //         link: {
-                    //             pathname: `/admin/payments`,
-                    //             params: {
-                    //                 bookingId: booking.id
-                    //             }
-                    //         }
-                    //     }
-                    // });
-
-                    return {
-                        success: true,
-                        message: "การชำระเงินเสร็จสมบูรณ์แล้ว กำลังรอการอนุมัติ",
-                        payment_id: payment.id
-                    };
-                } else {
-                    set.status = 400;
-                    return {
-                        success: false,
-                        message: "ข้อมูลบัญชีผู้รับเงินไม่ถูกต้อง กรุณาตรวจข้อมูลการของบัญชีผู้รับเงินในสลิปของคุณ",
-                    };
                 }
             } else {
                 const payments = await prisma.payments.update({
@@ -407,13 +402,13 @@ const app = new Elysia()
                     data: {
                         status: payments_status.PENDING_VERIFICATION,
                         payment_date: getThaiDate(),
-                        transaction_id: refNbr
+                        transaction_id: refNbr,
+                        slip_image: slipName
                     }
                 });
                 const bookings = await prisma.bookings.findUnique({
                     where: { id: parseInt(booking_id) },
                 });
-
                 await sendNotification(token, {
                     type: notifications_type.PAYMENT,
                     receive: {
@@ -421,10 +416,10 @@ const app = new Elysia()
                         all: false,
                     },
                     title: `ส่งการชำระเงินแล้ว`,
-                    body: `การชำระเงินของคุณอยู่ในขั้นตอนการตรวจสอบการชำระเงิน จำนวน ฿${addCommas(booking.total_price as any)} บาท กรุณารอการยืนยันจากเจ้าหน้าที่ ขอบคุณครับ :)`,
+                    body: `การชำระเงินของคุณอยู่ในขั้นตอนการตรวจสอบจำนวนเงิน ฿${addCommas(parseFloat(booking.total_price as any))} บาท กรุณารอการยืนยันจากเจ้าหน้าที่ภายใน 24 ชม. ขอบคุณครับ :)`,
                     data: {
                         link: {
-                            pathname: `/user/payments/success`,
+                            pathname: `/user/payments/receipt`,
                             params: {
                                 bookingId: booking.id
                             }
@@ -439,7 +434,7 @@ const app = new Elysia()
                         role: users_role.admin
                     },
                     title: `คุณ ${user?.firstname} ทำรายการการชำระเงิน`,
-                    body: `มีการชำระเงินเข้ามา จำนวน ฿${addCommas(booking.total_price as any)} บาท ดูรายละเอียดได้ที่นี่เพื่อทำการตรวจสอบ`,
+                    body: `มีการชำระเงินเข้ามา จำนวน ฿${addCommas(parseFloat(booking.total_price as any))} บาท ดูรายละเอียดได้ที่นี่เพื่อทำการตรวจสอบ`,
                     data: {
                         link: {
                             pathname: `/admin/payments`,
@@ -471,18 +466,25 @@ const app = new Elysia()
     }, {
         body: t.Object({
             booking_id: t.String(),
-            slip: t.File()
+            slip: t.File(),
+            typeConfirm: t.Union([
+                t.Literal('checked'),
+                t.Literal('manual'),
+            ]),
+            datacheckslip: t.String(),
+            refNbr: t.String()
         })
     })
-    .post("/reset-slip-check-count", async ({ set }) => {
+    .post("/check-count", async ({ set }) => {
         const remainingChecks = await getRemainingChecks();
-        if (!remainingChecks || remainingChecks > 3) {
-            return { success: true, message: "ยังมี credit เหลืออยู่" };
+        if (remainingChecks && remainingChecks > 3) {
+            return { success: true, message: "ยังมี credit เหลืออยู่", credit: remainingChecks };
         }
         try {
             const resetChecks = await resetSlipCheckCount();
+            console.log(resetChecks);
             if (resetChecks === 20) {
-                return { success: true, message: `Reset credit เรียบร้อย (${resetChecks} credits)` };
+                return { success: true, message: `Reset credit เรียบร้อย (${resetChecks} credits)`, credit: resetChecks };
             }
         } catch (error) {
             set.status = 500;

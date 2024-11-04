@@ -180,45 +180,45 @@ const app = new Elysia()
             newPassword: t.Optional(t.String())
         })
     })
-    .put("/update-user-status/:status", async ({ set, params: { status }, payloadUser }) => {
-        if (!payloadUser) {
-            set.status = 401;
-            return { success: false, message: "token ไม่ถูกต้อง" };
-        }
-        try {
-            const updateLastStatus = await prisma.users.update({
-                data: {
-                    usage_status: status,
-                    status_last_update: getThaiDate()
-                },
-                where: {
-                    id: payloadUser.id
-                }
-            })
-            if (!updateLastStatus) {
-                set.status = 404;
-                return {
-                    success: false,
-                    message: "ตัวตรวจสอบล้มเหลว"
-                };
-            }
+    // .put("/update-user-status/:status", async ({ set, params: { status }, payloadUser }) => {
+    //     if (!payloadUser) {
+    //         set.status = 401;
+    //         return { success: false, message: "token ไม่ถูกต้อง" };
+    //     }
+    //     try {
+    //         const updateLastStatus = await prisma.users.update({
+    //             data: {
+    //                 usage_status: status,
+    //                 status_last_update: getThaiDate()
+    //             },
+    //             where: {
+    //                 id: payloadUser.id
+    //             }
+    //         })
+    //         if (!updateLastStatus) {
+    //             set.status = 404;
+    //             return {
+    //                 success: false,
+    //                 message: "ตัวตรวจสอบล้มเหลว"
+    //             };
+    //         }
 
-            set.status = 200;
-            return {
-                success: true,
-                message: `อัพเดทสถานนะของ  userId:${payloadUser.id}\nสถานนะ: ${status} สำเร็จแล้ว`
-            };
-        } catch (error) {
-            set.status = 500;
-            return {
-                success: false,
-                message: `เกิดข้อผิดพลาดมีบางอย่างเกิดขึ้น: ${(error as Error).message}`
-            };
-        }
-    }, {
-        params: t.Object({
-            status: t.Enum(users_usage_status),
-        })
-    })
+    //         set.status = 200;
+    //         return {
+    //             success: true,
+    //             message: `อัพเดทสถานนะของ  userId:${payloadUser.id}\nสถานนะ: ${status} สำเร็จแล้ว`
+    //         };
+    //     } catch (error) {
+    //         set.status = 500;
+    //         return {
+    //             success: false,
+    //             message: `เกิดข้อผิดพลาดมีบางอย่างเกิดขึ้น: ${(error as Error).message}`
+    //         };
+    //     }
+    // }, {
+    //     params: t.Object({
+    //         status: t.Enum(users_usage_status),
+    //     })
+    // })
 
 export default app;
