@@ -1,6 +1,6 @@
 import jwt from '@elysiajs/jwt'
 import { Elysia, t } from 'elysia'
-import { PrismaClient, notifications_type, notifications_status, users, users_role } from '@prisma/client';
+import { PrismaClient, notifications_status, users, users_role } from '@prisma/client';
 import { JWTPayloadUser, NotificationData } from '../../../lib/lib';
 
 const prisma = new PrismaClient();
@@ -52,7 +52,7 @@ const app = new Elysia()
             ws.subscribe("notification");
         },
         async message(ws, message) {
-
+            console.log(message)
             const wsData = ws.data as WebSocketData;
             if (!wsData.success || !wsData.existingUser) {
                 ws.send(JSON.stringify({

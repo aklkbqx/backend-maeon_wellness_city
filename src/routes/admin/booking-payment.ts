@@ -19,17 +19,17 @@ const adminNotificationRoutes = new Elysia()
     //     }
     //     const token = authHeader.split(' ')[1];
     //     const payloadUser = await jwt.verify(token) as JWTPayloadUser;
-    //     if (!payloadUser || payloadUser.role !== 'admin') {
-    //         set.status = 401;
-    //         return { success: false, message: "ไม่มีสิทธิ์เข้าถึง" };
-    //     }
-    //     const existingUser = await prisma.users.findUnique({
-    //         where: { id: payloadUser.id },
-    //     });
-    //     if (!existingUser || existingUser.role !== 'admin') {
-    //         set.status = 404;
-    //         return { success: false, message: "ไม่มีสิทธิ์เข้าถึง" };
-    //     }
+        // if (!payloadUser || payloadUser.role !== 'admin') {
+        //     set.status = 401;
+        //     return { success: false, message: "ไม่มีสิทธิ์เข้าถึง" };
+        // }
+        // const existingUser = await prisma.users.findUnique({
+        //     where: { id: payloadUser.id },
+        // });
+        // if (!existingUser || existingUser.role !== 'admin') {
+        //     set.status = 404;
+        //     return { success: false, message: "ไม่มีสิทธิ์เข้าถึง" };
+        // }
     //     return { payloadUser, existingUser }
     // })
     .get('/all', async ({ set }) => {

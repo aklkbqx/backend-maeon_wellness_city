@@ -6,6 +6,7 @@ import Booking from "./booking";
 import Payment from "./payments";
 import NavigateMap from "./navigate-map";
 import Locations from "./locations";
+import Subdistricts from "./subdistricts";
 import Notifications from "./notifications";
 import Search from "./search";
 import Socket from "./socket"
@@ -23,6 +24,7 @@ const app = new Elysia()
     .group("/bookings", app => app.use(Booking))
     .group("/payments", app => app.use(Payment))
     .group("/locations", app => app.use(Locations))
+    .group("/subdistricts", app => app.use(Subdistricts))
     .group("/notifications", app => app.use(Notifications))
     .group("/navigate-map", app => app.use(NavigateMap))
     .group("/search", app => app.use(Search))

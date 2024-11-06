@@ -1,11 +1,15 @@
 import { Elysia, t } from 'elysia';
-import { PrismaClient, users_usage_status } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import { jwt } from '@elysiajs/jwt';
 import { unlink } from "node:fs/promises";
 import path from 'path';
 import { existsSync } from 'node:fs';
-import cors from '@elysiajs/cors';
-import { getThaiDate, JWTPayloadUser } from '../../lib/lib';
+
+type JWTPayloadUser = {
+    id: number;
+    role: string;
+}
+
 
 const prisma = new PrismaClient();
 const SECRET_KEY = process.env.SECRET_KEY;
@@ -15,7 +19,21 @@ if (!SECRET_KEY) {
 }
 
 const app = new Elysia()
-    .use(cors())
+    .get("/", async ({ set }) => {
+        try {
+            const users = await prisma.users.findMany()
+            return {
+                success: true,
+                users
+            };
+        } catch (error) {
+            set.status = 500;
+            return {
+                success: false,
+                message: `Something went wrong: ${(error as Error).message}`
+            };
+        }
+    })
     .use(jwt({ name: 'jwt', secret: SECRET_KEY }))
     .derive(async ({ headers, jwt, set }) => {
         const authHeader = headers.authorization;
@@ -30,31 +48,6 @@ const app = new Elysia()
             where: { id: payloadUser.id },
         });
         return { payloadUser, existingUser }
-    })
-    .post('/admin/notify', ({ body, set }) => {
-        app.server!.publish('notifications', JSON.stringify({
-            type: 'notification',
-            content: body.body
-        }))
-
-        return { success: true, message: 'Notification sent' }
-    }, {
-        body: t.Object({
-            title: t.String(),
-            body: t.String()
-        })
-    })
-    .get("/", async ({ set }) => {
-        try {
-            const users = await prisma.users.findMany()
-            return users;
-        } catch (error) {
-            set.status = 500;
-            return {
-                success: false,
-                message: `Something went wrong: ${(error as Error).message}`
-            };
-        }
     })
     .get('/me', async ({ set, payloadUser }) => {
         if (!payloadUser) {
@@ -180,45 +173,45 @@ const app = new Elysia()
             newPassword: t.Optional(t.String())
         })
     })
-    // .put("/update-user-status/:status", async ({ set, params: { status }, payloadUser }) => {
-    //     if (!payloadUser) {
-    //         set.status = 401;
-    //         return { success: false, message: "token ไม่ถูกต้อง" };
-    //     }
-    //     try {
-    //         const updateLastStatus = await prisma.users.update({
-    //             data: {
-    //                 usage_status: status,
-    //                 status_last_update: getThaiDate()
-    //             },
-    //             where: {
-    //                 id: payloadUser.id
-    //             }
-    //         })
-    //         if (!updateLastStatus) {
-    //             set.status = 404;
-    //             return {
-    //                 success: false,
-    //                 message: "ตัวตรวจสอบล้มเหลว"
-    //             };
-    //         }
+// .put("/update-user-status/:status", async ({ set, params: { status }, payloadUser }) => {
+//     if (!payloadUser) {
+//         set.status = 401;
+//         return { success: false, message: "token ไม่ถูกต้อง" };
+//     }
+//     try {
+//         const updateLastStatus = await prisma.users.update({
+//             data: {
+//                 usage_status: status,
+//                 status_last_update: getThaiDate()
+//             },
+//             where: {
+//                 id: payloadUser.id
+//             }
+//         })
+//         if (!updateLastStatus) {
+//             set.status = 404;
+//             return {
+//                 success: false,
+//                 message: "ตัวตรวจสอบล้มเหลว"
+//             };
+//         }
 
-    //         set.status = 200;
-    //         return {
-    //             success: true,
-    //             message: `อัพเดทสถานนะของ  userId:${payloadUser.id}\nสถานนะ: ${status} สำเร็จแล้ว`
-    //         };
-    //     } catch (error) {
-    //         set.status = 500;
-    //         return {
-    //             success: false,
-    //             message: `เกิดข้อผิดพลาดมีบางอย่างเกิดขึ้น: ${(error as Error).message}`
-    //         };
-    //     }
-    // }, {
-    //     params: t.Object({
-    //         status: t.Enum(users_usage_status),
-    //     })
-    // })
+//         set.status = 200;
+//         return {
+//             success: true,
+//             message: `อัพเดทสถานนะของ  userId:${payloadUser.id}\nสถานนะ: ${status} สำเร็จแล้ว`
+//         };
+//     } catch (error) {
+//         set.status = 500;
+//         return {
+//             success: false,
+//             message: `เกิดข้อผิดพลาดมีบางอย่างเกิดขึ้น: ${(error as Error).message}`
+//         };
+//     }
+// }, {
+//     params: t.Object({
+//         status: t.Enum(users_usage_status),
+//     })
+// })
 
 export default app;

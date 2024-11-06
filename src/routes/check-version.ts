@@ -3,11 +3,13 @@ import Elysia, { t } from "elysia";
 
 import { load } from 'cheerio';
 
-const CheckVersionSchema = t.Object({
-    platform: t.Enum({ ios: 'ios', android: 'android' }),
-    currentVersion: t.String(),
-    bundleId: t.String()
-});
+const CheckVersionSchema = {
+    body: t.Object({
+        platform: t.Enum({ ios: 'ios', android: 'android' }),
+        currentVersion: t.String(),
+        bundleId: t.String()
+    })
+}
 
 const getIOSVersion = async (bundleId: string): Promise<string> => {
     try {
@@ -76,10 +78,10 @@ const app = new Elysia()
                 success: true,
                 data: {
                     needsUpdate,
-                    forceUpdate: false, // ไม่สามารถเช็ค force update จาก store ได้โดยตรง
+                    forceUpdate: false,
                     latestVersion: storeVersion,
                     storeUrl,
-                    releaseNotes: null // ไม่สามารถดึง release notes ได้โดยตรง
+                    releaseNotes: null
                 }
             };
         } catch (error) {
@@ -89,8 +91,6 @@ const app = new Elysia()
                 error: error instanceof Error ? error.message : 'Unknown error occurred'
             };
         }
-    }, {
-        body: CheckVersionSchema
-    })
+    }, CheckVersionSchema)
 
 export default app;
